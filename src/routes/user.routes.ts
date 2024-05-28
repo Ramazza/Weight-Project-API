@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { UserRepository } from '../modules/user_repository/UserRepository';
+import { login } from '../middleware/login';
 
 const userRoutes = Router();
 const userRepository = new UserRepository();
@@ -10,6 +11,26 @@ userRoutes.post('/sign-up', (request, response) => {
 
 userRoutes.post('/sign-in', (request, response) => {
     userRepository.login(request, response);
+});
+
+userRoutes.post('/add-data', login, (request, response) => {
+    userRepository.addData(request, response);
+});
+
+userRoutes.post('/add-height', login, (request, response) => {
+    userRepository.setHeight(request, response);
+});
+
+userRoutes.post('/add-goal', login, (request, response) => {
+    userRepository.setGoal(request, response);
+});
+
+userRoutes.get('/get-user-data', login, (request, response) => {
+    userRepository.getUserInfo(request, response);
+});
+
+userRoutes.get('/get-latest-weight', login, (request, response) => {
+    userRepository.getLatestWeight(request, response);
 });
 
 export { userRoutes };
