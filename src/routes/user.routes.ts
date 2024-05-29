@@ -33,4 +33,8 @@ userRoutes.get('/get-latest-weight', login, (request, response) => {
     userRepository.getLatestWeight(request, response);
 });
 
+userRoutes.get('/get-all-data', login, (request, response) => {
+    userRepository.getAllUserData(request, response);
+});
+
 export { userRoutes };
