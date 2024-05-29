@@ -292,6 +292,40 @@ class UserRepository {
             );
         })
     }
+
+    getAllUserData(request: any, response: any) {
+        try {
+            const { user_id } = request.query;
+
+            pool.getConnection((error: any, connection: any) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+
+                connection.query(
+                    'SELECT * FROM weight WHERE user_id = ?', 
+                    [user_id], 
+                    (queryError: any, result: any, fields: any) => {
+                    connection.release();
+
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
+                    }
+
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided user ID' });
+                    }
+
+                    return response.status(200).json(result);
+                });
+            });
+        } catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
 }
 
 export { UserRepository };
