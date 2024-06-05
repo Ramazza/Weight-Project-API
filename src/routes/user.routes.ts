@@ -37,4 +37,12 @@ userRoutes.get('/get-all-data', login, (request, response) => {
     userRepository.getAllUserData(request, response);
 });
 
+userRoutes.delete('/delete-weight', login, (request, response) => {
+    userRepository.deleteUserData(request, response);
+});
+
+userRoutes.put('/update-weight', login, (request, response) => {
+    userRepository.updateUserData(request, response);
+});
+
 export { userRoutes };

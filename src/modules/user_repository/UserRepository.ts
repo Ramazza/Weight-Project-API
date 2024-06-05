@@ -326,6 +326,78 @@ class UserRepository {
             return response.status(500).json({ error: 'Internal Server Error' });
         }
     }
+
+    deleteUserData(request: any, response: any) {
+        try {
+            const { id } = request.query;
+    
+            pool.getConnection((error: any, connection: any) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+    
+                connection.query(
+                    'DELETE FROM weight WHERE id = ?', 
+                    [id], 
+                    (queryError: any, result: any, fields: any) => {
+                    connection.release();
+    
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error deleting data entry' });
+                    }
+    
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided ID' });
+                    }
+    
+                    return response.status(200).json({ message: 'Data entry deleted successfully' });
+                });
+            });
+        } catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+
+    updateUserData(request: any, response: any) {
+        try {
+            const { id, weight, fat, muscle, vis_fat, body_age, date } = request.body;
+    
+            pool.getConnection((error, connection) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+    
+                const query = `
+                    UPDATE weight 
+                    SET weight = ?, fat = ?, muscle = ?, vis_fat = ?, body_age = ?, date = ? 
+                    WHERE id = ?
+                `;
+                const values = [weight, fat, muscle, vis_fat, body_age, date, id];
+    
+                connection.query(query, values, (queryError: any, result: any, fields: any) => {
+                    connection.release();
+    
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
+                    }
+    
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided ID' });
+                    }
+    
+                    return response.status(200).json({ message: 'Data entry updated successfully' });
+                });
+            });
+        } catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
+    };
 }
 
 export { UserRepository };
