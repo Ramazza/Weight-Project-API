@@ -33,92 +33,277 @@ class UserRepository {
     login(request, response) {
         const { email, password } = request.body;
         mysql_1.pool.getConnection((error, connection) => {
-            connection.query('SELECT * FROM users WHERE email = ?', [email], (error, results, fields) => {
+            if (error) {
+                return response.status(500).json({ error: 'Database connection error' });
+            }
+            connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError, results) => {
                 connection.release();
-                if (error) {
-                    response.status(400).json({ error: 'Erro na Autentificação' });
+                if (queryError) {
+                    return response.status(500).json({ error: 'Error in authentication' });
                 }
-                (0, bcrypt_1.compare)(password, results[0].password, (err, result) => {
-                    if (error) {
-                        response.status(400).json({ error: 'Erro na Autentificação' });
+                if (results.length === 0) {
+                    return response.status(401).json({ error: 'Invalid email or password' });
+                }
+                const user = results[0];
+                (0, bcrypt_1.compare)(password, user.password, (compareError, isMatch) => {
+                    if (compareError) {
+                        return response.status(500).json({ error: 'Error in authentication' });
                     }
-                    if (result) {
+                    if (isMatch) {
                         const token = (0, jsonwebtoken_1.sign)({
-                            id: results[0].user_id,
-                            email: results[0].email,
+                            id: user.user_id,
+                            email: user.email,
                         }, process.env.SECRET, { expiresIn: '1d' });
-                        console.log(token);
-                        return response.status(200).json({ token: token, message: 'Autentificação com sucesso' });
+                        console.log('Generated Token:', token);
+                        return response.status(200).json({ token: token, message: 'Authentication successful' });
+                    }
+                    else {
+                        return response.status(401).json({ error: 'Invalid email or password' });
                     }
                 });
             });
         });
     }
     addData(request, response) {
-        const { user_id, weight, fat, muscle, vis_fat, body_age, date } = request.body;
-        const decode = (0, jsonwebtoken_1.verify)(request.headers.authorization, process.env.SECRET);
-        if (decode.email) {
+        try {
+            const { user_id, weight, fat, muscle, vis_fat, body_age, date } = request.body;
+            const token = request.headers.authorization?.split(' ')[1];
+            if (!token) {
+                return response.status(401).json({ error: 'No token provided' });
+            }
+            let decode;
+            try {
+                decode = (0, jsonwebtoken_1.verify)(token, process.env.SECRET);
+            }
+            catch (tokenError) {
+                return response.status(401).json({ error: 'Invalid token' });
+            }
+            if (!decode || typeof decode !== 'object' || !decode.email) {
+                return response.status(401).json({ error: 'Unauthorized access' });
+            }
             mysql_1.pool.getConnection((error, connection) => {
                 if (error) {
-                    console.log('Error!', error);
-                    return response.status(500).json({ error: 'Internal Server Error ' });
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
                 }
                 connection.query('INSERT INTO weight (user_id, weight, fat, muscle, vis_fat, body_age, date) VALUES (?,?,?,?,?,?,?)', [user_id, weight, fat, muscle, vis_fat, body_age, date], (queryError, result, fields) => {
                     connection.release();
                     if (queryError) {
-                        console.log('Querry Error: ', queryError);
-                        return response.status(400).json({ error: 'Error creating data entry' });
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
                     }
-                    return response.status(200).json({ message: 'Data entry created with success' });
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No user found with the provided email' });
+                    }
+                    return response.status(200).json({ message: 'Data entry updated successfully' });
                 });
             });
+        }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
         }
     }
     setHeight(request, response) {
-        const { height, email } = request.body;
-        const decode = (0, jsonwebtoken_1.verify)(request.headers.authorization, process.env.SECRET);
-        if (decode.email) {
+        try {
+            const { height, user_id } = request.body;
+            const token = request.headers.authorization?.split(' ')[1];
+            if (!token) {
+                return response.status(401).json({ error: 'No token provided' });
+            }
+            let decode;
+            try {
+                decode = (0, jsonwebtoken_1.verify)(token, process.env.SECRET);
+            }
+            catch (tokenError) {
+                return response.status(401).json({ error: 'Invalid token' });
+            }
+            if (!decode || typeof decode !== 'object' || !decode.email) {
+                return response.status(401).json({ error: 'Unauthorized access' });
+            }
             mysql_1.pool.getConnection((error, connection) => {
                 if (error) {
-                    console.log('Error!', error);
-                    return response.status(500).json({ error: 'Internal Server Error ' });
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
                 }
-                connection.query('UPDATE users SET height = ? WHERE email = ?', [height, email], (queryError, result, fields) => {
+                connection.query('UPDATE users SET height = ? WHERE user_id = ?', [height, user_id], (queryError, result, fields) => {
                     connection.release();
                     if (queryError) {
-                        console.log('Querry Error: ', queryError);
-                        return response.status(400).json({ error: 'Error creating data entry' });
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
                     }
-                    return response.status(200).json({ message: 'Data entry created with success' });
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No user found with the provided email' });
+                    }
+                    return response.status(200).json({ message: 'Data entry updated successfully' });
                 });
             });
+        }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
         }
     }
     setGoal(request, response) {
-        const { goal, email } = request.body;
-        const decode = (0, jsonwebtoken_1.verify)(request.headers.authorization, process.env.SECRET);
-        if (decode.email) {
+        try {
+            const { goal, user_id } = request.body;
+            const token = request.headers.authorization?.split(' ')[1];
+            if (!token) {
+                return response.status(401).json({ error: 'No token provided' });
+            }
+            let decode;
+            try {
+                decode = (0, jsonwebtoken_1.verify)(token, process.env.SECRET);
+            }
+            catch (tokenError) {
+                return response.status(401).json({ error: 'Invalid token' });
+            }
+            if (!decode || typeof decode !== 'object' || !decode.email) {
+                return response.status(401).json({ error: 'Unauthorized access' });
+            }
             mysql_1.pool.getConnection((error, connection) => {
                 if (error) {
-                    console.log('Error!', error);
-                    return response.status(500).json({ error: 'Internal Server Error ' });
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
                 }
-                connection.query('UPDATE users SET goal = ? WHERE email = ?', [goal, email], (queryError, result, fields) => {
+                connection.query('UPDATE users SET goal = ? WHERE user_id = ?', [goal, user_id], (queryError, result, fields) => {
                     connection.release();
                     if (queryError) {
-                        console.log('Querry Error: ', queryError);
-                        return response.status(400).json({ error: 'Error creating data entry' });
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
                     }
-                    return response.status(200).json({ message: 'Data entry created with success' });
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No user found with the provided email' });
+                    }
+                    return response.status(200).json({ message: 'Data entry updated successfully' });
                 });
             });
         }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
     }
-    addProfileImage() {
+    getUserInfo(request, response) {
+        const { user_id } = request.query;
+        mysql_1.pool.getConnection((error, connection) => {
+            if (error) {
+                return response.status(500).json({ error: 'Erro ao conectar ao banco de dados!' });
+            }
+            connection.query('SELECT * FROM users WHERE user_id = ?', [user_id], (error, results) => {
+                connection.release();
+                if (error) {
+                    return response.status(400).json({ error: 'Erro ao buscar os dados do usuário!' });
+                }
+                if (results.length === 0) {
+                    return response.status(404).json({ message: 'Usuário não encontrado!' });
+                }
+                return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: results[0] });
+            });
+        });
     }
-    getUserInfo() {
+    getLatestWeight(request, response) {
+        const { user_id } = request.query;
+        mysql_1.pool.getConnection((error, connection) => {
+            if (error) {
+                return response.status(500).json({ error: 'Erro ao conectar ao banco de dados!' });
+            }
+            connection.query('SELECT weight FROM weight WHERE date = (SELECT MAX(date) FROM weight WHERE user_id = ?) AND user_id = ?', [user_id, user_id], (error, results) => {
+                connection.release();
+                if (error) {
+                    return response.status(400).json({ error: 'Erro ao buscar os dados do usuário!' });
+                }
+                if (results.length === 0) {
+                    return response.status(404).json({ message: 'Usuário não encontrado!' });
+                }
+                return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: results[0] });
+            });
+        });
     }
-    getLatestWeight() {
+    getAllUserData(request, response) {
+        try {
+            const { user_id } = request.query;
+            mysql_1.pool.getConnection((error, connection) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+                connection.query('SELECT * FROM weight WHERE user_id = ?', [user_id], (queryError, result, fields) => {
+                    connection.release();
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
+                    }
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided user ID' });
+                    }
+                    return response.status(200).json(result);
+                });
+            });
+        }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
     }
+    deleteUserData(request, response) {
+        try {
+            const { id } = request.query;
+            mysql_1.pool.getConnection((error, connection) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+                connection.query('DELETE FROM weight WHERE id = ?', [id], (queryError, result, fields) => {
+                    connection.release();
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error deleting data entry' });
+                    }
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided ID' });
+                    }
+                    return response.status(200).json({ message: 'Data entry deleted successfully' });
+                });
+            });
+        }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+    updateUserData(request, response) {
+        try {
+            const { id, weight, fat, muscle, vis_fat, body_age, date } = request.body;
+            mysql_1.pool.getConnection((error, connection) => {
+                if (error) {
+                    console.error('Error getting database connection:', error);
+                    return response.status(500).json({ error: 'Internal Server Error' });
+                }
+                const query = `
+                    UPDATE weight 
+                    SET weight = ?, fat = ?, muscle = ?, vis_fat = ?, body_age = ?, date = ? 
+                    WHERE id = ?
+                `;
+                const values = [weight, fat, muscle, vis_fat, body_age, date, id];
+                connection.query(query, values, (queryError, result, fields) => {
+                    connection.release();
+                    if (queryError) {
+                        console.error('Query Error:', queryError);
+                        return response.status(400).json({ error: 'Error updating data entry' });
+                    }
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({ message: 'No data found for the provided ID' });
+                    }
+                    return response.status(200).json({ message: 'Data entry updated successfully' });
+                });
+            });
+        }
+        catch (err) {
+            console.error('Unexpected Error:', err);
+            return response.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+    ;
 }
 exports.UserRepository = UserRepository;

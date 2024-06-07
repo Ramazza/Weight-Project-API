@@ -22,3 +22,18 @@ userRoutes.post('/add-height', login_1.login, (request, response) => {
 userRoutes.post('/add-goal', login_1.login, (request, response) => {
     userRepository.setGoal(request, response);
 });
+userRoutes.get('/get-user-data', login_1.login, (request, response) => {
+    userRepository.getUserInfo(request, response);
+});
+userRoutes.get('/get-latest-weight', login_1.login, (request, response) => {
+    userRepository.getLatestWeight(request, response);
+});
+userRoutes.get('/get-all-data', login_1.login, (request, response) => {
+    userRepository.getAllUserData(request, response);
+});
+userRoutes.delete('/delete-weight', login_1.login, (request, response) => {
+    userRepository.deleteUserData(request, response);
+});
+userRoutes.put('/update-weight', login_1.login, (request, response) => {
+    userRepository.updateUserData(request, response);
+});
