@@ -36,49 +36,54 @@ class UserRepository {
         })
     }
 
-        login(request: Request, response: Response) {
-            const { email, password } = request.body;
-        
-            pool.getConnection((error: any, connection: any) => {
-                if (error) {
-                    return response.status(500).json({ error: 'Database connection error' });
+    login(request: Request, response: Response) {
+        const { email, password } = request.body;
+    
+        pool.getConnection((error: any, connection: any) => {
+            if (error) {
+                console.error('Error getting database connection:', error);
+                return response.status(500).json({ error: 'Internal server error. Please try again later.' });
+            }
+    
+            connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError: any, results: any) => {
+                connection.release();
+                if (queryError) {
+                    console.error('Error executing query:', queryError);
+                    return response.status(500).json({ error: 'Internal server error. Please try again later.' });
                 }
-        
-                connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError: any, results: any) => {
-                    connection.release();
-                    if (queryError) {
-                        return response.status(500).json({ error: 'Error in authentication' });
+    
+                if (results.length === 0) {
+                    console.warn('Invalid login attempt: email not found', { email });
+                    return response.status(401).json({ error: 'Invalid email or password' });
+                }
+    
+                const user = results[0];
+                compare(password, user.password, (compareError, isMatch) => {
+                    if (compareError) {
+                        console.error('Error comparing passwords:', compareError);
+                        return response.status(500).json({ error: 'Internal server error. Please try again later.' });
                     }
-        
-                    if (results.length === 0) {
+    
+                    if (isMatch) {
+                        const token = sign(
+                            {
+                                id: user.user_id,
+                                email: user.email,
+                            },
+                            process.env.SECRET as string,
+                            { expiresIn: '1d' }
+                        );
+                        console.log('Generated Token:', token);
+                        return response.status(200).json({ token: token, message: 'Authentication successful' });
+                    } else {
+                        console.warn('Invalid login attempt: incorrect password', { email });
                         return response.status(401).json({ error: 'Invalid email or password' });
                     }
-        
-                    const user = results[0];
-                    compare(password, user.password, (compareError, isMatch) => {
-                        if (compareError) {
-                            return response.status(500).json({ error: 'Error in authentication' });
-                        }
-        
-                        if (isMatch) {
-                            const token = sign(
-                                {
-                                    id: user.user_id,
-                                    email: user.email,
-                                },
-                                process.env.SECRET as string,
-                                { expiresIn: '1d' }
-                            );
-                            console.log('Generated Token:', token);
-                            return response.status(200).json({ token: token, message: 'Authentication successful' });
-                        } else {
-                            return response.status(401).json({ error: 'Invalid email or password' });
-                        }
-                    });
                 });
             });
-        }
-
+        });
+    }
+    
     addData(request: any, response: any) {
         try {
             const { user_id, weight, fat, muscle, vis_fat, body_age, date} = request.body;

@@ -16,13 +16,4 @@ pool.on('error', (err) => {
     console.error('MySQL connection pool error: ', err);
 });
 
-pool.getConnection((err, connection) => {
-    if (err) {
-        console.error('Error getting MySQL connection: ', err);
-    } else {
-        console.log('Connected to MySQL database');
-        connection.release();
-    }
-});
-
 export { pool };

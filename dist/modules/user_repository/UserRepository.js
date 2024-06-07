@@ -34,20 +34,24 @@ class UserRepository {
         const { email, password } = request.body;
         mysql_1.pool.getConnection((error, connection) => {
             if (error) {
-                return response.status(500).json({ error: 'Database connection error' });
+                console.error('Error getting database connection:', error);
+                return response.status(500).json({ error: 'Internal server error. Please try again later.' });
             }
             connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError, results) => {
                 connection.release();
                 if (queryError) {
-                    return response.status(500).json({ error: 'Error in authentication' });
+                    console.error('Error executing query:', queryError);
+                    return response.status(500).json({ error: 'Internal server error. Please try again later.' });
                 }
                 if (results.length === 0) {
+                    console.warn('Invalid login attempt: email not found', { email });
                     return response.status(401).json({ error: 'Invalid email or password' });
                 }
                 const user = results[0];
                 (0, bcrypt_1.compare)(password, user.password, (compareError, isMatch) => {
                     if (compareError) {
-                        return response.status(500).json({ error: 'Error in authentication' });
+                        console.error('Error comparing passwords:', compareError);
+                        return response.status(500).json({ error: 'Internal server error. Please try again later.' });
                     }
                     if (isMatch) {
                         const token = (0, jsonwebtoken_1.sign)({
@@ -58,6 +62,7 @@ class UserRepository {
                         return response.status(200).json({ token: token, message: 'Authentication successful' });
                     }
                     else {
+                        console.warn('Invalid login attempt: incorrect password', { email });
                         return response.status(401).json({ error: 'Invalid email or password' });
                     }
                 });
