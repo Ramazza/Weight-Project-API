@@ -36,40 +36,48 @@ class UserRepository {
         })
     }
 
-    login(request: Request, response: Response) {
-        const { email, password } = request.body;
-        pool.getConnection((error: any, connection: any) => {
-            connection.query('SELECT * FROM users WHERE email = ?',
-                [email],
-                (error: any, results: any, fields: any) => {
+        login(request: Request, response: Response) {
+            const { email, password } = request.body;
+        
+            pool.getConnection((error: any, connection: any) => {
+                if (error) {
+                    return response.status(500).json({ error: 'Database connection error' });
+                }
+        
+                connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError: any, results: any) => {
                     connection.release();
-                    if(error) {
-                        response.status(400).json({ error: 'Erro na Autentificação' });
+                    if (queryError) {
+                        return response.status(500).json({ error: 'Error in authentication' });
                     }
-                    compare(password, results[0].password, (err, result) => {
-                        if(err) {
-                            response.status(400).json({ error: 'Erro na Autentificação' });
+        
+                    if (results.length === 0) {
+                        return response.status(401).json({ error: 'Invalid email or password' });
+                    }
+        
+                    const user = results[0];
+                    compare(password, user.password, (compareError, isMatch) => {
+                        if (compareError) {
+                            return response.status(500).json({ error: 'Error in authentication' });
                         }
-                        if(result) {
+        
+                        if (isMatch) {
                             const token = sign(
                                 {
-                                    id: results[0].user_id,
-                                    email: results[0].email,
+                                    id: user.user_id,
+                                    email: user.email,
                                 },
                                 process.env.SECRET as string,
-                                {expiresIn: '1d'}
+                                { expiresIn: '1d' }
                             );
                             console.log('Generated Token:', token);
-                            return response.status(200).json({ token: token, message: 'Autentificação com sucesso' });
-                        }
-                        else {
+                            return response.status(200).json({ token: token, message: 'Authentication successful' });
+                        } else {
                             return response.status(401).json({ error: 'Invalid email or password' });
                         }
                     });
-                }
-            );
-        });
-    }
+                });
+            });
+        }
 
     addData(request: any, response: any) {
         try {
@@ -119,27 +127,6 @@ class UserRepository {
             console.error('Unexpected Error:', err);
             return response.status(500).json({ error: 'Internal Server Error' });
         }
-        // const decode: any = verify(request.headers.authorization, process.env.SECRET as string);
-      /*   if (decode.email){
-            pool.getConnection((error: any, connection: any) => {
-                if(error) {
-                    console.log('Error!', error);
-                    return response.status(500).json({ error: 'Internal Server Error '});
-                }
-    
-                connection.query('INSERT INTO weight (user_id, weight, fat, muscle, vis_fat, body_age, date) VALUES (?,?,?,?,?,?,?)', 
-                        [user_id, weight, fat, muscle, vis_fat, body_age, date],
-                        (queryError: any, result: any, fields: any) => {
-                            connection.release();
-                            if(queryError) {
-                                console.log('Querry Error: ', queryError);
-                                return response.status(400).json({ error: 'Error creating data entry' });
-                            }
-                            return response.status(200).json({ message: 'Data entry created with success' });
-                        }
-                )
-            })
-        } */
     } 
 
     setHeight(request: Request, response: Response) {
@@ -236,10 +223,6 @@ class UserRepository {
         }
     }
 
-    addProfileImage() {
-        
-    }
-
     getUserInfo(request: any, response: any) {
         const { user_id } = request.query;
         pool.getConnection((error: any, connection: any) => {
@@ -265,7 +248,6 @@ class UserRepository {
             );
         });
     }
-    
 
     getLatestWeight(request: any, response: any) {
         const { user_id } = request.query;
