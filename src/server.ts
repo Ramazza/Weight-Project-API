@@ -24,5 +24,5 @@ app.use(express.json());
 app.use('/user', userRoutes);
 
 app.listen(4000 , () => {
-    console.log('Server is now running onw port 4000');
+    console.log('Server is now running on port 4000');
 });

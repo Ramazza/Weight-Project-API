@@ -22,5 +22,5 @@ app.use(cors());
 app.use(express_1.default.json());
 app.use('/user', user_routes_1.userRoutes);
 app.listen(4000, () => {
-    console.log('Server is now running onw port 4000');
+    console.log('Server is now running on port 4000');
 });
