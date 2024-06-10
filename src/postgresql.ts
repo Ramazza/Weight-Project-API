@@ -1,19 +1,21 @@
-import mysql from 'mysql2';
+import { Pool } from 'pg';
 import { config } from 'dotenv';
 
 config();
 
-const pool = mysql.createPool({
+const pool = new Pool({
     "user": process.env.USER_DATABASE,
     "password": process.env.PASSWORD_DATABASE,
     "database": process.env.DATABASE,
     "host": process.env.HOST_DATABASE,
     "port": Number(process.env.PORT_DATABASE),
-    connectionLimit: 10000,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
-pool.on('error', (err) => {
-    console.error('MySQL connection pool error: ', err);
+pool.on('error', (err: any) => {
+    console.error('PostgreSQL connection pool error: ', err);
 });
 
 export { pool };

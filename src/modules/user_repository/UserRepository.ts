@@ -1,4 +1,4 @@
-import { pool } from "../../mysql";
+import { pool } from "../../postgresql";
 import { v4 as uuidv4 } from 'uuid';
 import { hash, compare } from 'bcrypt';
 import { sign, verify } from 'jsonwebtoken';
@@ -8,7 +8,7 @@ class UserRepository {
 
     create(request: Request, response: Response) {
         const { name, email, password } = request.body;
-        pool.getConnection((error: any, connection: any) => {
+        pool.connect((error: any, connection: any) => {
             if(error) {
                 console.log('Error!', error);
                 return response.status(500).json({ error: 'Internal Server Error '});
@@ -21,7 +21,7 @@ class UserRepository {
                     return response.status(500).json({ error: 'Internal Server Error '});
                 }
 
-            connection.query('INSERT INTO users (user_id, name, email, password) VALUES (?,?,?,?)',
+                connection.query('INSERT INTO users (user_id, name, email, password) VALUES ($1,$2,$3,$4)',
                     [uuidv4(), name, email, hashedPassword],
                     (queryError: any, result: any, fields: any) => {
                         connection.release();
@@ -39,25 +39,29 @@ class UserRepository {
     login(request: Request, response: Response) {
         const { email, password } = request.body;
     
-        pool.getConnection((error: any, connection: any) => {
+        if (!email || !password) {
+            return response.status(400).json({ error: 'Email and password are required' });
+        }
+
+        pool.connect((error: any, connection: any) => {
             if (error) {
                 console.error('Error getting database connection:', error);
                 return response.status(500).json({ error: 'Internal server error. Please try again later.' });
             }
     
-            connection.query('SELECT * FROM users WHERE email = ?', [email], (queryError: any, results: any) => {
+            connection.query('SELECT * FROM users WHERE email = $1', [email], (queryError: any, results: any) => {
                 connection.release();
                 if (queryError) {
                     console.error('Error executing query:', queryError);
                     return response.status(500).json({ error: 'Internal server error. Please try again later.' });
                 }
     
-                if (results.length === 0) {
+                if (!results || results.rows.length === 0) {
                     console.warn('Invalid login attempt: email not found', { email });
                     return response.status(401).json({ error: 'Invalid email or password' });
                 }
     
-                const user = results[0];
+                const user = results.rows[0];
                 compare(password, user.password, (compareError, isMatch) => {
                     if (compareError) {
                         console.error('Error comparing passwords:', compareError);
@@ -83,7 +87,7 @@ class UserRepository {
             });
         });
     }
-    
+
     addData(request: any, response: any) {
         try {
             const { user_id, weight, fat, muscle, vis_fat, body_age, date} = request.body;
@@ -104,13 +108,13 @@ class UserRepository {
                 return response.status(401).json({ error: 'Unauthorized access' });
             }
 
-            pool.getConnection((error: any, connection: any) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
 
-                connection.query('INSERT INTO weight (user_id, weight, fat, muscle, vis_fat, body_age, date) VALUES (?,?,?,?,?,?,?)', 
+                connection.query('INSERT INTO weight (user_id, weight, fat, muscle, vis_fat, body_age, date) VALUES ($1,$2,$3,$4,$5,$6,$7)', 
                 [user_id, weight, fat, muscle, vis_fat, body_age, date], 
                     (queryError: any, result: any, fields: any) => {
                     connection.release();
@@ -154,13 +158,13 @@ class UserRepository {
                 return response.status(401).json({ error: 'Unauthorized access' });
             }
 
-            pool.getConnection((error: any, connection: any) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
 
-                connection.query('UPDATE users SET height = ? WHERE user_id = ?', [height, user_id], (queryError: any, result: any, fields: any) => {
+                connection.query('UPDATE users SET height = $1 WHERE user_id = $2', [height, user_id], (queryError: any, result: any, fields: any) => {
                     connection.release();
 
                     if (queryError) {
@@ -201,13 +205,13 @@ class UserRepository {
                 return response.status(401).json({ error: 'Unauthorized access' });
             }
 
-            pool.getConnection((error: any, connection: any) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
 
-                connection.query('UPDATE users SET goal = ? WHERE user_id = ?', [goal, user_id], (queryError: any, result: any, fields: any) => {
+                connection.query('UPDATE users SET goal =$1  WHERE user_id = $2', [goal, user_id], (queryError: any, result: any, fields: any) => {
                     connection.release();
 
                     if (queryError) {
@@ -230,13 +234,13 @@ class UserRepository {
 
     getUserInfo(request: any, response: any) {
         const { user_id } = request.query;
-        pool.getConnection((error: any, connection: any) => {
+        pool.connect((error: any, connection: any) => {
             if (error) {
                 return response.status(500).json({ error: 'Erro ao conectar ao banco de dados!' });
             }
     
             connection.query(
-                'SELECT * FROM users WHERE user_id = ?',
+                'SELECT * FROM users WHERE user_id = $1',
                 [user_id],
                 (error: any, results: any) => {
                     connection.release();
@@ -256,13 +260,13 @@ class UserRepository {
 
     getLatestWeight(request: any, response: any) {
         const { user_id } = request.query;
-        pool.getConnection((error: any, connection: any) => {
+        pool.connect((error: any, connection: any) => {
             if(error) {
                 return response.status(500).json({ error: 'Erro ao conectar ao banco de dados!' });
             }
 
             connection.query(
-                'SELECT weight FROM weight WHERE date = (SELECT MAX(date) FROM weight WHERE user_id = ?) AND user_id = ?',
+                'SELECT weight FROM weight WHERE date = (SELECT MAX(date) FROM weight WHERE user_id = $1) AND user_id = $2',
                 [user_id, user_id],
                 (error: any, results: any) => {
                     connection.release();
@@ -284,14 +288,14 @@ class UserRepository {
         try {
             const { user_id } = request.query;
 
-            pool.getConnection((error: any, connection: any) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
 
                 connection.query(
-                    'SELECT * FROM weight WHERE user_id = ?', 
+                    'SELECT * FROM weight WHERE user_id = $1', 
                     [user_id], 
                     (queryError: any, result: any, fields: any) => {
                     connection.release();
@@ -318,14 +322,14 @@ class UserRepository {
         try {
             const { id } = request.query;
     
-            pool.getConnection((error: any, connection: any) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
     
                 connection.query(
-                    'DELETE FROM weight WHERE id = ?', 
+                    'DELETE FROM weight WHERE id = $1', 
                     [id], 
                     (queryError: any, result: any, fields: any) => {
                     connection.release();
@@ -352,20 +356,18 @@ class UserRepository {
         try {
             const { id, weight, fat, muscle, vis_fat, body_age, date } = request.body;
     
-            pool.getConnection((error, connection) => {
+            pool.connect((error: any, connection: any) => {
                 if (error) {
                     console.error('Error getting database connection:', error);
                     return response.status(500).json({ error: 'Internal Server Error' });
                 }
-    
-                const query = `
-                    UPDATE weight 
-                    SET weight = ?, fat = ?, muscle = ?, vis_fat = ?, body_age = ?, date = ? 
-                    WHERE id = ?
-                `;
-                const values = [weight, fat, muscle, vis_fat, body_age, date, id];
-    
-                connection.query(query, values, (queryError: any, result: any, fields: any) => {
+
+                    connection.query(
+                    `UPDATE weight 
+                    SET weight = $1, fat = $2, muscle = $3, vis_fat = $4, body_age = $5, date = $6 
+                    WHERE id = $7`,
+                    [weight, fat, muscle, vis_fat, body_age, date, id], 
+                    (queryError: any, result: any, fields: any) => {
                     connection.release();
     
                     if (queryError) {
@@ -385,6 +387,7 @@ class UserRepository {
             return response.status(500).json({ error: 'Internal Server Error' });
         }
     };
+
 }
 
 export { UserRepository };

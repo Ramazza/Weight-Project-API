@@ -10,7 +10,7 @@ userRoutes.post('/sign-up', (request, response) => {
 });
 
 userRoutes.post('/sign-in', (request, response) => {
-    userRepository.login(request, response);
+userRepository.login(request, response);
 });
 
 userRoutes.post('/add-data', login, (request, response) => {
@@ -43,6 +43,6 @@ userRoutes.delete('/delete-weight', login, (request, response) => {
 
 userRoutes.put('/update-weight', login, (request, response) => {
     userRepository.updateUserData(request, response);
-});
+}); 
 
 export { userRoutes };
