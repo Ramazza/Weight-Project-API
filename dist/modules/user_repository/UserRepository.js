@@ -221,10 +221,10 @@ class UserRepository {
                 if (error) {
                     return response.status(400).json({ error: 'Erro ao buscar os dados do usuário!' });
                 }
-                if (results.length === 0) {
+                if (results.rows.length === 0) {
                     return response.status(404).json({ message: 'Usuário não encontrado!' });
                 }
-                return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: results[0] });
+                return response.status(200).json({ user: { weight: results.rows[0].weight } });
             });
         });
     }
