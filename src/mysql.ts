@@ -9,7 +9,7 @@ const pool = mysql.createPool({
     "database": process.env.DATABASE,
     "host": process.env.HOST_DATABASE,
     "port": Number(process.env.PORT_DATABASE),
-    connectionLimit: 20,
+    connectionLimit: 10000,
 });
 
 pool.on('error', (err) => {
