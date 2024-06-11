@@ -242,17 +242,25 @@ class UserRepository {
             connection.query(
                 'SELECT * FROM users WHERE user_id = $1',
                 [user_id],
-                (error: any, results: any) => {
-                    connection.release();
+                (error: any, result: any) => {
+                    /* connection.release();
                     if (error) {
                         return response.status(400).json({ error: 'Erro ao buscar os dados do usuário!' });
                     }
     
-                    if (results.length === 0) {
+                    if (result.length === 0) {
                         return response.status(404).json({ message: 'Usuário não encontrado!' });
                     }
     
-                    return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: results[0] });
+                    console.log('Dados do usuário retornados com sucesso', result.rows)
+                    return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: result.rows }); */
+                    if (result.rows.length === 0) {
+                        return response.status(404).json({ message: 'Usuário não encontrado!' });
+                    } else if (result.rows.length === 1) {
+                        return response.status(200).json({ message: 'Dados do usuário retornados com sucesso', user: result.rows[0] });
+                    } else {
+                        return response.status(400).json({ error: 'Mais de um usuário encontrado!' });
+                    }
                 }
             );
         });
@@ -277,7 +285,7 @@ class UserRepository {
                     if (results.rows.length === 0) {
                         return response.status(404).json({ message: 'Usuário não encontrado!' });
                     }
-    
+
                     return response.status(200).json({ user: { weight: results.rows[0].weight } });
                 }
             );
@@ -309,7 +317,7 @@ class UserRepository {
                         return response.status(404).json({ message: 'No data found for the provided user ID' });
                     }
 
-                    return response.status(200).json(result);
+                    return response.status(200).json(result.rows);
                 });
             });
         } catch (err) {
