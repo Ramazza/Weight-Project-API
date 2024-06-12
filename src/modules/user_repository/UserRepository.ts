@@ -44,7 +44,7 @@ class UserRepository {
                         email: user.email,
                     },
                     process.env.SECRET as string,
-                    { expiresIn: '1d' }
+                    { expiresIn: '100d' }
                 );
                 response.status(200).json({ token: token, message: 'Authentication successful' });
             } else {
